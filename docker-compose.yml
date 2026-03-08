@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine # Берем легкую версию Postgres 15
+    container_name: saas_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: rootpassword
+      POSTGRES_DB: saas_booking
+    ports:
+      - "5432:5432" # Прокидываем порт из контейнера наружу
+    volumes:
+      - pgdata:/var/lib/postgresql/data # Сохраняем данные, чтобы они не удалились при рестарте контейнера
+
+volumes:
+  pgdata:

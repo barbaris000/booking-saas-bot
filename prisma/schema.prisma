@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql" // Указываем, что используем PostgreSQL
+}
+
+// 1. Компания (Салон, Барбершоп). Это основа нашей SaaS системы.
+model Company {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Связи: у одной компании может быть много мастеров, услуг и записей
+  employees    Employee[]
+  services     Service[]
+  appointments Appointment[]
+}
+
+// 2. Сотрудник (Мастер)
+model Employee {
+  id        Int      @id @default(autoincrement())
+  name      String
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id])
+
+  appointments Appointment[]
+}
+
+// 3. Услуга (Например: Мужская стрижка)
+model Service {
+  id          Int      @id @default(autoincrement())
+  name        String
+  price       Int      // Деньги всегда храним в минимальных единицах (копейки/центы), чтобы не было проблем с дробями
+  duration    Int      // Длительность в минутах
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  appointments Appointment[]
+}
+
+// 4. Клиент (Тот, кто пишет в Telegram бота)
+model Client {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @unique // ID в телеграме длинные, используем BigInt
+  name       String
+  phone      String?
+
+  appointments Appointment[]
+}
+
+// 5. Запись на сеанс (Appointment) - связующая таблица
+model Appointment {
+  id         Int      @id @default(autoincrement())
+  dateTime   DateTime // Дата и время начала сеанса
+  status     String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  
+  // Кто записался?
+  clientId   Int
+  client     Client   @relation(fields: [clientId], references: [id])
+  
+  // К какому мастеру?
+  employeeId Int
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  
+  // На какую услугу?
+  serviceId  Int
+  service    Service  @relation(fields: [serviceId], references: [id])
+
+  // В каком салоне? (Денормализация для удобства выборок)
+  companyId  Int
+  company    Company  @relation(fields: [companyId], references: [id])
+
+  createdAt  DateTime @default(now())
+}
