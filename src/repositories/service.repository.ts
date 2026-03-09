@@ -19,4 +19,11 @@ export class ServiceRepository {
             where: { companyId },
         });
     }
+
+    // Получаем конкретную услугу по ID
+    static async getServiceById(id:number) {
+        return prisma.service.findUnique({
+            where: { id },
+        });
+    }
 }

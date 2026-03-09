@@ -2,6 +2,8 @@ import { Bot, InlineKeyboard } from 'grammy';
 import dotenv from 'dotenv';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { ServiceRepository } from '../repositories/service.repository';
+import { AppointmentRepository } from '../repositories/appointment.repository';
+import { generateAvailableSlots } from '../utils/time.util';
 
 
 dotenv.config();
@@ -162,6 +164,76 @@ bot.callbackQuery(/service_(\d+)_(\d+)/, async (ctx) => {
     await ctx.editMessageText('Чудово! Оберіть зручну дату:', {
         reply_markup: datesKeyboard
     });
+});
+
+// 5.Обработка выбора ДАТЫ -> Показываем свободные часы
+// Ловим паттерн: date_{YYYY-MM-DD}_{serviceId}_{masterId}
+bot.callbackQuery(/date_(.+)_(\d+)_(\d+)/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+
+    const dateStr = ctx.match[1]; // Наша дата в формате YYYY-MM-DD
+    const serviceId = parseInt(ctx.match[2], 10);
+    const masterId = parseInt(ctx.match[3], 10);
+
+    try {
+        // 1. Достаем саму услугу, чтобы узнать её длительность
+        const service = await ServiceRepository.getServiceById(serviceId);
+        if (!service) {
+            return ctx.editMessageText('Помилка: послугу не знайдено.');
+        }
+
+        // 2. Достаем все занятые записи мастера на этот день
+        const appointments = await AppointmentRepository.getAppointmentByDate(masterId, dateStr);
+
+        // 3. Генерируем массив свободных слотов (магия из нашего time.util.ts)
+        const slots = generateAvailableSlots(dateStr, appointments, service.duration);
+
+        // Если все слоты заняты или день уже прошел
+        if (slots.length === 0) {
+            const backKeyboard = new InlineKeyboard()
+                .text('🔙 Вибрати іншу дату', `service_${serviceId}_${masterId}`);
+            
+            return ctx.editMessageText('На жаль, на цю дату більше немає вільних місць. 😔', {
+                reply_markup: backKeyboard
+            });
+        }
+
+        // 4. Рисуем клавиатуру со временем
+        const timeKeyboard = new InlineKeyboard();
+
+        slots.forEach((slot, index) => {
+            // payload: t_{HH:MM}_{YYYY-MM-DD}_{serviceId}_{masterId}
+            const callbackData = `t_${slot}_${dateStr}_${serviceId}_${masterId}`;
+            timeKeyboard.text(`🕒 ${slot}`, callbackData);
+
+            // Группируем по 3 кнопки в ряд для красоты на экране мобильного
+            if ((index + 1) % 3 === 0) {
+                timeKeyboard.row();
+            }
+        });
+
+        // Закрываем ряд, если последняя строка не полная
+        if (slots.length % 3 !== 0) {
+            timeKeyboard.row();
+        }
+
+        // Кнопка назад ведет к выбору даты
+        timeKeyboard.text('🔙 Назад до календаря', `service_${serviceId}_${masterId}`).row();
+
+        // Красивое форматирование выбранной даты
+        const displayDate = new Date(dateStr).toLocaleDateString('uk-UA', {
+            weekday: 'long', day: 'numeric', month: 'long'
+        });
+
+        await ctx.editMessageText(`Ви обрали: <b>${displayDate}</b>\nОберіть вільний час:`, {
+            reply_markup: timeKeyboard,
+            parse_mode: 'HTML' // Разрешаем использовать HTML теги вроде <b> для жирного текста
+        });
+
+    } catch (error) {
+        console.error('Помилка при генерації слотів', error);
+        await ctx.reply('Сталася помилка на сервері при завантаженні розкладу.');
+    }
 });
 
 // Обработка кнопки "назад"
