@@ -24,4 +24,24 @@ export class AppointmentRepository {
             }
         });
     }
+
+    // Создаем новую запись
+    static async createAppointment(
+        dateTime: Date,
+        clientId: number,
+        employeeId: number,
+        serviceId: number,
+        companyId: number
+    ) {
+        return prisma.appointment.create({
+            data: {
+                dateTime,
+                clientId,
+                employeeId,
+                serviceId,
+                companyId,
+                status: 'CONFIRMED' // В MVP считаем, что запись сразу подтверждена
+            }
+        });
+    }
 }
