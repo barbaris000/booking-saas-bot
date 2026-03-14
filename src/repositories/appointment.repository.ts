@@ -20,7 +20,8 @@ export class AppointmentRepository {
                 }
             },
             include: {
-                service: true  // Магия Prisma: автоматически подтягиваем данные услуги, чтобы знать её длительность (duration)
+                service: true,  // Магия Prisma: автоматически подтягиваем данные услуги, чтобы знать её длительность (duration)
+                client: true
             }
         });
     }

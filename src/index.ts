@@ -8,6 +8,13 @@ import appointmentRoutes from './routes/appointment.routes';
 // Инициализируем окружение
 dotenv.config();
 
+// --- ФИКС ДЛЯ BIGINT ---
+// Учим глобальный объект BigInt правильно конвертироваться в JSON (в строку)
+(BigInt.prototype as any).toJSON = function () {
+    return this.toString();
+};
+// -----------------------
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
